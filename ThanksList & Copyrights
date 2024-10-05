@@ -1,0 +1,11 @@
+Copyrights:
+
+Copyright(C) 2023-2024 WorkFlow.
+Follow the Apache 2.0 license agreement.
+
+
+Thanks:
+
+Honghaier-Game: GUI debugger design by his TKinterDesigner.
+TKinterDesigner is the predecessor of his software PyMe( https://github.com/honghaier-game/PyMe ). 
+RemoteConnectionToolkit uses TKinterDesigner v1.5.1.
