@@ -1,6 +1,6 @@
 """
 Remote Connection Toolkit
-Copyright(C) 2023-2024 WorkFlow
+Copyright(C) 2023-2024 C14147.
 
 A remote connection toolkit that provides multiple operational 
 tools by encapsulating the Python network toolkit, simplifying 
@@ -24,9 +24,8 @@ import threading
 import Fun
 
 
-__version__ = "1.1.1"
+__version__ = "1.1.0"
 WRCT_ANY_IP_ADDRESS = "WRCT_ANY_IP_ADDRESS"
-WRCT_WARN_DIFFERENT_IP = "WRCT_WARN_DIFFERENT_IP"
 
 
 class Redirector(object):
@@ -196,26 +195,17 @@ class RemoteConnection:
         self.clientPort = addr[1]
         logging.info("Client Connected: {}".format(self.clientAddress))
         if self.clientAddress != self.remoteIP and self.remoteIP != WRCT_ANY_IP_ADDRESS:
-            if self.remoteIP == WRCT_WARN_DIFFERENT_IP:
-                logging.warning(
-                    "Connected IP {} Does Not Match The Specified {}".format(
-                        self.clientAddress, self.remoteIP
-                    )
+            self.clientObject.close()
+            logging.error(
+                "Connected IP {} Does Not Match The Specified {}".format(
+                    self.clientAddress, self.remoteIP
                 )
-                self.clientObject.send("Close|err,")
-                return -1
-            else:
-                self.clientObject.close()
-                logging.error(
-                    "Connected IP {} Does Not Match The Specified {}".format(
-                        self.clientAddress, self.remoteIP
-                    )
+            )
+            raise RemoteToolkitError(
+                "Connected IP {} Does Not Match The Specified {}".format(
+                    self.clientAddress, self.remoteIP
                 )
-                raise RemoteToolkitError(
-                    "Connected IP {} Does Not Match The Specified {}".format(
-                        self.clientAddress, self.remoteIP
-                    )
-                )
+            )
 
         # Check the client
         self.clientObject.send(
@@ -383,6 +373,6 @@ builtin_funcs = {
 }
 
 if __name__ == "__main__":
-    remote = RemoteConnection("192.168.0.69", 12345, True)
-    remote.initiativeConnect(0)
+    remote = RemoteConnection(WRCT_ANY_IP_ADDRESS, 12345, True)
+    remote.initiativeConnect(30)
     remote.listen(builtin_funcs)
