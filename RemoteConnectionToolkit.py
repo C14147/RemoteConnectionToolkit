@@ -2,15 +2,13 @@
 Remote Connection Toolkit
 Copyright(C) 2023-2024 C14147.
 
-A remote connection toolkit that provides multiple operational 
-tools by encapsulating the Python network toolkit, simplifying 
-the process of remote connection.
+A remote connection toolkit that provides multiple operational tools by encapsulating
+the Python network toolkit, simplifying the process of remote connection.
 
 Declaration: 
-Due to the strong scalability and fast version iteration of 
-this project, when communicating remotely with a computer, all 
-digits except for the third digit of the version number must be 
-the same in order to continue communication.
+Due to the strong scalability and fast version iteration of this project, when 
+communicating remotely with a computer, all digits except for the third digit of the 
+version number must be the same in order to continue communication.
 """
 
 import os, sys
@@ -24,7 +22,7 @@ import threading
 import Fun
 
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 WRCT_ANY_IP_ADDRESS = "WRCT_ANY_IP_ADDRESS"
 
 
@@ -33,6 +31,7 @@ class Redirector(object):
     Imitate the FileObject class, which redirects the message originally
     output to the terminal to the debug window when performing a write operation.
     """
+
     def __init__(self, text_widget: tkinter.Text):
         self.text_widget = text_widget
 
@@ -42,6 +41,7 @@ class Redirector(object):
 
 class DebugHelper:
     """GUI debugger for remote connection"""
+
     def __init__(self, root, isTKroot=True):
         uiName = self.__class__.__name__
         Fun.Register(uiName, "UIClass", self)
@@ -93,6 +93,7 @@ class DebugHelper:
 
 class TextboxHandler(logging.Handler):
     """Inheriting logging.Handler to output logs to the window"""
+
     def __init__(self, textbox):
         logging.Handler.__init__(self)
         self.textbox = textbox
@@ -208,10 +209,10 @@ class RemoteConnection:
             )
 
         # Check the client
-        self.clientObject.send(
+        self.sendString(
             "Answer! Remote Connection Toolkit version {},server ip: {}".format(
                 __version__, self.host
-            ).encode()
+            )
         )
         if timeout:
             self.clientObject.settimeout(timeout)
@@ -269,10 +270,10 @@ class RemoteConnection:
                 "Unsupported Client Interface (Client Answer: {})".format(msg)
             )
 
-        self.clientObject.send(
+        self.sendString(
             "Answer! Remote Connection Toolkit version {},server ip: {}".format(
                 __version__, self.host
-            ).encode()
+            )
         )
 
     def listen(self, funcList: dict):
@@ -288,7 +289,7 @@ class RemoteConnection:
                     logging.info(
                         "Event {} Started, Gived Args: {}".format(
                             funcRE, event_args
-                        ).encode()
+                        )
                     )
                     funcReturn = funcList[funcRE](self, event_args)
                     logging.log(
@@ -299,7 +300,7 @@ class RemoteConnection:
                         ),
                         "Event {} Ended, Return Value: {}".format(
                             funcRE, funcReturn
-                        ).encode(),
+                        )
                     )
 
 
@@ -322,7 +323,7 @@ the "args" parameter.
 
 def closeRemote(remote: RemoteConnection, args: None):
     """Close Connection of The Remote"""
-    remote.clientObject.send("Close|1,".encode())
+    remote.sendString("Close|1,")
     remote.clientObject.close()
     logging.info("Connection Closed.")
     remote.connect = False
@@ -332,35 +333,51 @@ def closeRemote(remote: RemoteConnection, args: None):
 def sendPathList(remote: RemoteConnection, args: list):
     """Passive transfer function, generally do not call directly."""
     _tmp = json.dumps(list(os.listdir(os.path.abspath(args[0]))))
-    remote.clientObject.send(_tmp.encode())
+    remote.sendString(_tmp)
 
 
 def getPathList(remote: RemoteConnection, args: list):
     """Proactively request the contents of a specified folder from a remote computer"""
-    remote.clientObject.send(f"sendPathList|{args[0]},".encode())
-    time.sleep(2)
+    remote.sendString(f"sendPathList|{args[0]},")
     _tmp = remote.clientObject.recv(2048)
     print(_tmp.decode())
 
 
 def sendFile(remote: RemoteConnection, args: list):
     """Proactively sending file to remote computer."""
-    remote.clientObject.send(f"reciveFile|{args[0]},".encode())
+    remote.sendString(f"reciveFile|{args[0]},")
     msg = remote.clientObject.recv(1024)
     msg = msg.decode()
-    if msg == "Ready.":
+    if msg == "Ready":
         with open(os.path.abspath(args[0]), "rb") as file:
-            pass
+            while True:
+                f_data = file.read(1024)
+                if f_data:
+                    remote.send(f_data)
+                else:
+                    break
+    else:
+        raise RemoteToolkitError(
+            "The remote computer's response is incorrect when transferring files."
+        )
 
 
 def reciveFile(remote: RemoteConnection, args: list):
     """Passive file-receiving function, generally do not call directly."""
-    pass
+    remote.sendString("Ready")
+    filename = args[0]
+    with open(filename, "wb") as file:
+        while True:
+            f_data = remote.clientObject.recv(1024)
+            if f_data:
+                file.write(f_data)
+            else:
+                break
 
 
 def getFile(remote: RemoteConnection, args: list):
     """Proactively obtain file from remote computer."""
-    remote.clientObject.send(f"sendFile|{args[0]},".encode())
+    remote.sendString(f"sendFile|{args[0]},")
 
 
 builtin_funcs = {
