@@ -1,20 +1,28 @@
-# RemoteConnectionToolkit
+RemoteConnectionToolkit
+===================
+[![Language](https://img.shields.io/badge/Python-3.10.0-blue?logo=python)](https://python.org)
+![Plantform](https://img.shields.io/badge/Windows-blue)
+![Plantform](https://img.shields.io/badge/Linux-blue)
+
 
 _A Development Kit for Remote Connection and Based on Python3._
 
 ## About This Project
 
-I was influenced by various remote desktop software, especially PowerToys, and developed this project using socket interface. It establishes a connection between two computers and controls them through instructions. This connection is bidirectional, which means that this project is useful for remote login, remote collaboration, and file transfer.
+I was influenced by various remote desktop software(especially PowerToys), and developed this project using socket interface. It establishes a connection between two computers and controls them through instructions. This connection is bidirectional, which means that this project is useful for remote login, remote collaboration, and file transfer.
 
 ## How did it work
 
-I use Python 3 to call the socket interface of the operating system, establishing one as a server and the other as a client. When the client initiates a connection to the server, they will send their tool version and network IP information to the other party to ensure the security and stability of remote transmission. Afterwards, they will wait for the user's command to be issued. The instructions and execution results will be transmitted to the corresponding computer through the TCP protocol.
+I use Python 3 to call the socket interface of the system, establishing one as a server and the other as a client. When the client initiates a connection to the server, they will send their tool version and network IP information to the other party to ensure the security and stability of remote transmission. Afterwards, they will wait for the user's command to be issued. The instructions and execution results will be transmitted to the corresponding computer through the TCP protocol.
 
 ## Getting Started
 
 ### 1.Setting up
 
 Download the source code to your computer.\
+```bash
+git clone https://github.com/C14147/RemoteConnectionToolkit.git
+```
 **👉 The tool versions of two computers must have the same digits except for the third digit! The project has strong scalability and there are many areas that need improvement and optimization.**
 
 ### 2.Start Programming
