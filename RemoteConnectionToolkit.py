@@ -11,39 +11,41 @@ communicating remotely with a computer, all digits except for the third digit of
 version number must be the same in order to continue communication.
 """
 
-import os, sys
+import os
+import re
+import sys
+import time
+import json
 import socket
 import logging
-import re
-import json
-import time
 import tkinter
 import threading
+
 import Fun
 
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 WRCT_ANY_IP_ADDRESS = "WRCT_ANY_IP_ADDRESS"
 
 
-class Redirector(object):
+class Redirector:
     """
-    Imitate the FileObject class, which redirects the message originally
-    output to the terminal to the debug window when performing a write operation.
+    Imitate the FileObject class, which redirects the message originally output 
+    to the terminal to the debug window when performing a write operation.
     """
 
     def __init__(self, text_widget: tkinter.Text):
         self.text_widget = text_widget
 
-    def write(self, message):
+    def write(self, message: str):
         self.text_widget.insert(tkinter.END, message)
 
 
 class DebugHelper:
     """GUI debugger for remote connection"""
 
-    def __init__(self, root, isTKroot=True):
-        uiName = self.__class__.__name__
+    def __init__(self, root: tkinter.Tk, isTKroot=True):
+        uiName = "DebugHelper"
         Fun.Register(uiName, "UIClass", self)
         self.root = root
         if isTKroot == True:
@@ -73,7 +75,7 @@ class DebugHelper:
         self.Entry_3.bind("<Return>", self.runEvent)
         # Inital all element's Data
         Fun.InitElementData(uiName)
-        # Add Some Logic Code Here: (Keep This Line of comments)
+        
         self.Text_2.config(font=("Microsoft YaHei UI", 12))
         self.Entry_3.config(font=("Microsoft YaHei UI", 11))
         self.Text_2.insert(tkinter.END, "========================================\n")
@@ -100,10 +102,11 @@ class TextboxHandler(logging.Handler):
 
     def emit(self, record):
         msg = self.format(record)
-        self.textbox.insert("end", msg + "\n")
+        self.textbox.insert(tkinter.END, msg + "\n")
 
 
 class RemoteToolkitError(Exception):
+    """An Error Exception Class For Project"""
     def __init__(self, message: str):
         self.message = message
 
@@ -137,14 +140,14 @@ def _check_version(version: str):
 
 
 class RemoteConnection:
-    def __init__(self, remoteIP: str, port: int, debugGUI=False):
+    def __init__(self, remoteIP: str, port=4469, debugGUI=False):
         if debugGUI:
             threading.Thread(target=_debugWindow, args=[self]).start()
             time.sleep(1)
             logging.basicConfig(
                 handlers=[TextboxHandler(text2)],
                 level=logging.DEBUG,
-                format="(Remote Connection: %(asctime)s) [%(levelname)s]: %(message)s",
+                format="(Remote Connection Toolkit: %(asctime)s) [%(levelname)s]: %(message)s",
             )
         else:
             self.logger = logging.getLogger()
@@ -163,6 +166,7 @@ class RemoteConnection:
                 handlers=[sh, th],
             )
             sys.stderr = open("WRemoteConnection.stderr.log", "a", encoding="utf-8")
+        
         logging.info("Starting Remote Connection...")
 
         self.connect = True
@@ -186,15 +190,19 @@ class RemoteConnection:
     def sendString(self, msg: str) -> int:
         return self.send(msg.encode())
 
-    def passiveConnect(self, timeout=10):
+    def passiveConnect(self, timeout=0):
         self.connectMode = "passiveConnect"
         self.socketObject.bind((self.host, self.port))
-        self.socketObject.listen(2)
+        self.socketObject.listen(3)
         logging.info("Waiting for Client Connect...")
         self.clientObject, addr = self.socketObject.accept()
         self.clientAddress = addr[0]
         self.clientPort = addr[1]
-        logging.info("Client Connected: {}".format(self.clientAddress))
+        logging.info(
+            "Client Connected: {}:{}".format(
+                self.clientAddress, self.clientPort
+            )
+        )
         if self.clientAddress != self.remoteIP and self.remoteIP != WRCT_ANY_IP_ADDRESS:
             self.clientObject.close()
             logging.error(
@@ -237,7 +245,7 @@ class RemoteConnection:
                 "Unsupported Client Interface (Client Answer: {})".format(msg)
             )
 
-    def initiativeConnect(self, timeout=10):
+    def initiativeConnect(self, timeout=0):
         self.connectMode = "initiativeConnect"
         logging.info("Connecting Client...")
         self.socketObject.connect((self.remoteIP, self.port))
@@ -254,21 +262,6 @@ class RemoteConnection:
         except socket.timeout:
             logging.warning("Can't Connect Remote Computer: Time Out.")
         msg = msg.decode()
-        ver = re.search("\d+\.\d+\.\d+", msg)[0]
-        logging.debug(f"Recived Version: {ver}")
-        if (
-            msg
-            and ("Answer! Remote Connection Toolkit version" in msg)
-            and _check_version(ver)
-        ):
-            logging.info("Cilent Answered: " + msg)
-        else:
-            logging.error(
-                "Unsupported Client Interface (Client Answer: {})".format(msg)
-            )
-            raise RemoteToolkitError(
-                "Unsupported Client Interface (Client Answer: {})".format(msg)
-            )
 
         self.sendString(
             "Answer! Remote Connection Toolkit version {},server ip: {}".format(
@@ -311,7 +304,7 @@ variable in remote computer communication. You can use them directly or refer
 to these functions to write your own functions to achieve the desired effect.
 
 Your custom function must like this:
---> def func_name(remote: RemoteConnection, args: list | None == None) -> None: 
+--> def func_name(remote: RemoteConnection, args: list) -> Any: 
         ...
 The formal parameters of the function must have and only have the formal 
 parameters of the above function. You can encapsulate other variables into 
@@ -321,7 +314,7 @@ the "args" parameter.
 """
 
 
-def closeRemote(remote: RemoteConnection, args: None):
+def closeRemote(remote: RemoteConnection, args: list):
     """Close Connection of The Remote"""
     remote.sendString("Close|1,")
     remote.clientObject.close()
