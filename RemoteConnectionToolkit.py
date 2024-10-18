@@ -14,12 +14,15 @@ version number must be the same in order to continue communication.
 import os
 import re
 import sys
+import mss
 import time
 import json
+import base64
 import socket
 import logging
 import tkinter
 import threading
+from PIL import ImageGrab
 
 import Fun
 
@@ -284,17 +287,22 @@ class RemoteConnection:
                             funcRE, event_args
                         )
                     )
-                    funcReturn = funcList[funcRE](self, event_args)
-                    logging.log(
-                        (
-                            logging.INFO
-                            if (funcReturn == 0 or funcReturn == None)
-                            else logging.WARNING
-                        ),
-                        "Event {} Ended, Return Value: {}".format(
-                            funcRE, funcReturn
+                    try:
+                        funcReturn = funcList[funcRE](self, event_args)
+                        logging.log(
+                            (
+                                logging.INFO
+                                if (funcReturn == 0 or funcReturn == None)
+                                else logging.WARNING
+                            ),
+                            "Event {} Ended, Return Value: {}".format(
+                                funcRE, funcReturn
+                            )
                         )
-                    )
+                    except Exception as e:
+                        logging.error("Event {} Crashed: {}".format(funcRE, e))
+                        
+                        self.sendString(f"showError|{ base64.b64encode(str(e).encode('utf-8')) },")
 
 
 # Here is the implementation of the built-in instruction set:
@@ -314,8 +322,19 @@ the "args" parameter.
 """
 
 
+def showError(remote: RemoteConnection, args: list):
+    """Show the error message of remote computer"""
+    # args[0]: Error Message
+    logging.error(
+        "Remote Computer Send An Error: {} .Please Check The Error And Feedback To Us.".format(
+            base64.b64decode(args[0]).decode('utf-8')
+        )
+    )
+
+
 def closeRemote(remote: RemoteConnection, args: list):
     """Close Connection of The Remote"""
+    # No arg used
     remote.sendString("Close|1,")
     remote.clientObject.close()
     logging.info("Connection Closed.")
@@ -325,12 +344,14 @@ def closeRemote(remote: RemoteConnection, args: list):
 
 def sendPathList(remote: RemoteConnection, args: list):
     """Passive transfer function, generally do not call directly."""
+    # args[0] : Folder Path(str)
     _tmp = json.dumps(list(os.listdir(os.path.abspath(args[0]))))
     remote.sendString(_tmp)
 
 
 def getPathList(remote: RemoteConnection, args: list):
-    """Proactively request the contents of a specified folder from a remote computer"""
+    """Proactively request the contents of a specified folder from a remote computer."""
+    # args[0] : Folder Path(str)
     remote.sendString(f"sendPathList|{args[0]},")
     _tmp = remote.clientObject.recv(2048)
     print(_tmp.decode())
@@ -338,6 +359,7 @@ def getPathList(remote: RemoteConnection, args: list):
 
 def sendFile(remote: RemoteConnection, args: list):
     """Proactively sending file to remote computer."""
+    # args[0] : File Path(str)
     remote.sendString(f"reciveFile|{args[0]},")
     msg = remote.clientObject.recv(1024)
     msg = msg.decode()
@@ -357,6 +379,7 @@ def sendFile(remote: RemoteConnection, args: list):
 
 def reciveFile(remote: RemoteConnection, args: list):
     """Passive file-receiving function, generally do not call directly."""
+    # args[0] : File Path(str)
     remote.sendString("Ready")
     filename = args[0]
     with open(filename, "wb") as file:
@@ -370,7 +393,18 @@ def reciveFile(remote: RemoteConnection, args: list):
 
 def getFile(remote: RemoteConnection, args: list):
     """Proactively obtain file from remote computer."""
+    # args[0] : File Path(str)
     remote.sendString(f"sendFile|{args[0]},")
+
+def catchScreenshot(remote: RemoteConnection, args: list):
+    """Catch The Screenshot of This Computer"""
+    # args[0] : Monitor Numbers(list)
+    with mss.mss() as sct:
+        monitors = sct.monitors[1:]
+    for monitor in (json.dumps(args[0])):
+        with mss.mss() as sct:
+            screenshot = sct.grab(monitors[monitor])
+            mss.tools.to_png(screenshot.rgb, screenshot.size, output=f'tmp_screenshot_{monitor}.png')
 
 
 builtin_funcs = {
@@ -380,6 +414,7 @@ builtin_funcs = {
     "sendFile": sendFile,
     "reciveFile": reciveFile,
     "getFile": getFile,
+    "catchScreenshot": catchScreenshot,
 }
 
 if __name__ == "__main__":
