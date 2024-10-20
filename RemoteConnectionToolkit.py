@@ -14,7 +14,9 @@ version number must be the same in order to continue communication.
 import os
 import re
 import sys
+import PIL.Image
 import mss
+import PIL
 import time
 import json
 import base64
@@ -22,7 +24,6 @@ import socket
 import logging
 import tkinter
 import threading
-from PIL import ImageGrab
 
 import Fun
 
@@ -33,7 +34,7 @@ WRCT_ANY_IP_ADDRESS = "WRCT_ANY_IP_ADDRESS"
 
 class Redirector:
     """
-    Imitate the FileObject class, which redirects the message originally output 
+    Imitate the FileObject class, which redirects the message originally output
     to the terminal to the debug window when performing a write operation.
     """
 
@@ -78,7 +79,7 @@ class DebugHelper:
         self.Entry_3.bind("<Return>", self.runEvent)
         # Inital all element's Data
         Fun.InitElementData(uiName)
-        
+
         self.Text_2.config(font=("Microsoft YaHei UI", 12))
         self.Entry_3.config(font=("Microsoft YaHei UI", 11))
         self.Text_2.insert(tkinter.END, "========================================\n")
@@ -110,6 +111,7 @@ class TextboxHandler(logging.Handler):
 
 class RemoteToolkitError(Exception):
     """An Error Exception Class For Project"""
+
     def __init__(self, message: str):
         self.message = message
 
@@ -169,7 +171,7 @@ class RemoteConnection:
                 handlers=[sh, th],
             )
             sys.stderr = open("WRemoteConnection.stderr.log", "a", encoding="utf-8")
-        
+
         logging.info("Starting Remote Connection...")
 
         self.connect = True
@@ -202,9 +204,7 @@ class RemoteConnection:
         self.clientAddress = addr[0]
         self.clientPort = addr[1]
         logging.info(
-            "Client Connected: {}:{}".format(
-                self.clientAddress, self.clientPort
-            )
+            "Client Connected: {}:{}".format(self.clientAddress, self.clientPort)
         )
         if self.clientAddress != self.remoteIP and self.remoteIP != WRCT_ANY_IP_ADDRESS:
             self.clientObject.close()
@@ -283,9 +283,7 @@ class RemoteConnection:
                 if funcRE == cvk[0]:
                     event_args = cvk[1].split(",")
                     logging.info(
-                        "Event {} Started, Gived Args: {}".format(
-                            funcRE, event_args
-                        )
+                        "Event {} Started, Gived Args: {}".format(funcRE, event_args)
                     )
                     try:
                         funcReturn = funcList[funcRE](self, event_args)
@@ -297,12 +295,14 @@ class RemoteConnection:
                             ),
                             "Event {} Ended, Return Value: {}".format(
                                 funcRE, funcReturn
-                            )
+                            ),
                         )
                     except Exception as e:
                         logging.error("Event {} Crashed: {}".format(funcRE, e))
-                        
-                        self.sendString(f"showError|{ base64.b64encode(str(e).encode('utf-8')) },")
+
+                        self.sendString(
+                            f"showError|{ base64.b64encode(str(e).encode('utf-8')) },"
+                        )
 
 
 # Here is the implementation of the built-in instruction set:
@@ -317,9 +317,13 @@ Your custom function must like this:
 The formal parameters of the function must have and only have the formal 
 parameters of the above function. You can encapsulate other variables into 
 the "args" parameter.
-
-
 """
+
+
+def ArgsFormater(**kwargs):
+    for iter in range(0, len(kwargs)):
+        kwargs[iter] = str(kwargs[iter])
+    return kwargs
 
 
 def showError(remote: RemoteConnection, args: list):
@@ -327,7 +331,7 @@ def showError(remote: RemoteConnection, args: list):
     # args[0]: Error Message
     logging.error(
         "Remote Computer Send An Error: {} .Please Check The Error And Feedback To Us.".format(
-            base64.b64decode(args[0]).decode('utf-8')
+            base64.b64decode(args[0]).decode("utf-8")
         )
     )
 
@@ -396,15 +400,46 @@ def getFile(remote: RemoteConnection, args: list):
     # args[0] : File Path(str)
     remote.sendString(f"sendFile|{args[0]},")
 
+
 def catchScreenshot(remote: RemoteConnection, args: list):
     """Catch The Screenshot of This Computer"""
-    # args[0] : Monitor Numbers(list)
+    # args[0] : Monitor Number(int)
     with mss.mss() as sct:
         monitors = sct.monitors[1:]
-    for monitor in (json.dumps(args[0])):
-        with mss.mss() as sct:
-            screenshot = sct.grab(monitors[monitor])
-            mss.tools.to_png(screenshot.rgb, screenshot.size, output=f'tmp_screenshot_{monitor}.png')
+    monitor = int(args[0])
+    with mss.mss() as sct:
+        screenshot = sct.grab(monitors[monitor])
+        mss.tools.to_png(
+            screenshot.rgb, screenshot.size, output=f"tmp_screenshot_{monitor}.png"
+        )
+
+
+def sendScreenshot(remote: RemoteConnection, args: list):
+    """Send The Screenshot of This Computer"""
+    # args[0] : Monitor Number(int)
+    monitor = int(args[0])
+    remote.sendString(f"sendFile|tmp_screenshot_{monitor}.png")
+
+
+def showScreenshot(remote: RemoteConnection, args: list):
+    """Get Screenshot of Remote Computer"""
+    # args[0] : Monitor Number(int)
+    monitor = int(args[0])
+    img = PIL.Image.open(f"tmp_screenshot_{monitor}.png")
+    img.show()
+
+
+def getScreenshot(remote: RemoteConnection, args: list):
+    """Get Screenshot of Remote Computer"""
+    # args[0] : Monitor Number(int)
+    # args[1] : Is show image(bool) , default: false
+    monitor = int(args[0])
+    if len(args) == 1:
+        args[1] = "false"
+    remote.sendString(f"catchScreenshot|{monitor}")
+    remote.sendString(f"sendScreenshot|{monitor}")
+    if args[1].lower() == "true":
+        showScreenshot(remote, ArgsFormater(args[0]))
 
 
 builtin_funcs = {
@@ -415,6 +450,9 @@ builtin_funcs = {
     "reciveFile": reciveFile,
     "getFile": getFile,
     "catchScreenshot": catchScreenshot,
+    "sendScreenshot": sendScreenshot,
+    "showScreenshot": showScreenshot,
+    "getScreenshot": getScreenshot,
 }
 
 if __name__ == "__main__":
