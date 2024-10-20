@@ -1,6 +1,7 @@
 RemoteConnectionToolkit
 ===================
 [![Language](https://img.shields.io/badge/Python-3.10.0-blue?logo=python)](https://python.org)
+![Language](https://img.shields.io/badge/RemoteConnectionToolkit-1.4.0-green)
 ![Plantform](https://img.shields.io/badge/Windows-blue)
 ![Plantform](https://img.shields.io/badge/Linux-blue)
 
@@ -70,12 +71,12 @@ The usage is the same as _socket.send_.
 
 Function for sending string messages to remote computers.
 
-#### passiveConnect(timeout=10):
+#### passiveConnect(timeout=0):
 
 Start in passive mode and wait for other computers to connect. Equivalent to establishing a server on the computer executing the code.\
 The ‘timeout’ parameter specifies the maximum duration of waiting for a connection, measured in seconds. When timeout=0, the computer executing the code will wait until the process ends or another computer connects.
 
-#### initiativeConnect(timeout=10):
+#### initiativeConnect(timeout=0):
 
 Start in initiative mode and wait for other computers to connect. Equivalent to establishing a client on the computer executing the code.\
 The ‘timeout’ parameter specifies the maximum duration of waiting for a connection, measured in seconds. When timeout=0, the computer executing the code will wait until the process ends or another computer connects.
