@@ -16,7 +16,6 @@ import re
 import sys
 import PIL.Image
 import mss
-import PIL
 import time
 import json
 import base64
@@ -28,7 +27,7 @@ import threading
 import Fun
 
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 WRCT_ANY_IP_ADDRESS = "WRCT_ANY_IP_ADDRESS"
 
 
@@ -44,6 +43,9 @@ class Redirector:
     def write(self, message: str):
         self.text_widget.insert(tkinter.END, message)
 
+    def flush(self):
+        pass
+
 
 class DebugHelper:
     """GUI debugger for remote connection"""
@@ -58,24 +60,17 @@ class DebugHelper:
             root["background"] = "#000000"
         Form_1 = tkinter.Canvas(root, width=10, height=4)
         Form_1.place(x=0, y=0, width=797, height=600)
-        Form_1.configure(bg="#000000")
-        Form_1.configure(highlightthickness=0)
+        Form_1.configure(bg="#000000", highlightthickness=0)
         Fun.Register(uiName, "root", root)
         Fun.Register(uiName, "Form_1", Form_1)
         # Create the elements of root
-        self.Text_2 = tkinter.Text(root)
+        self.Text_2 = tkinter.Text(root, bg="#000000", fg="#ffffff", relief="flat")
         Fun.Register(uiName, "Text_2", self.Text_2, "Text")
         self.Text_2.place(x=0, y=0, width=800, height=561)
-        self.Text_2.configure(bg="#000000")
-        self.Text_2.configure(fg="#ffffff")
-        self.Text_2.configure(relief="flat")
         Entry_3_Variable = Fun.AddTKVariable(uiName, "Entry_3", "")
-        self.Entry_3 = tkinter.Entry(root, textvariable=Entry_3_Variable)
+        self.Entry_3 = tkinter.Entry(root, textvariable=Entry_3_Variable, bg="#151515", fg="#ffffff", relief="flat")
         Fun.Register(uiName, "Entry_3", self.Entry_3)
         self.Entry_3.place(x=2, y=567, width=792, height=27)
-        self.Entry_3.configure(bg="#151515")
-        self.Entry_3.configure(fg="#ffffff")
-        self.Entry_3.configure(relief="flat")
         self.Entry_3.bind("<Return>", self.runEvent)
         # Inital all element's Data
         Fun.InitElementData(uiName)
@@ -201,52 +196,29 @@ class RemoteConnection:
         self.socketObject.listen(3)
         logging.info("Waiting for Client Connect...")
         self.clientObject, addr = self.socketObject.accept()
-        self.clientAddress = addr[0]
-        self.clientPort = addr[1]
-        logging.info(
-            "Client Connected: {}:{}".format(self.clientAddress, self.clientPort)
-        )
+        self.clientAddress, self.clientPort = addr
+        logging.info(f"Client Connected: {self.clientAddress}:{self.clientPort}")
         if self.clientAddress != self.remoteIP and self.remoteIP != WRCT_ANY_IP_ADDRESS:
             self.clientObject.close()
-            logging.error(
-                "Connected IP {} Does Not Match The Specified {}".format(
-                    self.clientAddress, self.remoteIP
-                )
-            )
-            raise RemoteToolkitError(
-                "Connected IP {} Does Not Match The Specified {}".format(
-                    self.clientAddress, self.remoteIP
-                )
-            )
+            logging.error(f"Connected IP {self.clientAddress} Does Not Match The Specified {self.remoteIP}")
+            raise RemoteToolkitError(f"Connected IP {self.clientAddress} Does Not Match The Specified {self.remoteIP}")
 
         # Check the client
-        self.sendString(
-            "Answer! Remote Connection Toolkit version {},server ip: {}".format(
-                __version__, self.host
-            )
-        )
+        self.sendString(f"Answer! Remote Connection Toolkit version {__version__},server ip: {self.host}")
         if timeout:
             self.clientObject.settimeout(timeout)
         try:
-            msg = self.clientObject.recv(1024)
+            msg = self.clientObject.recv(1024).decode()
         except socket.timeout:
             logging.warning("Can't Connect Remote Computer: Time Out.")
-        msg = msg.decode()
-        ver = re.search("\d+\.\d+\.\d+", msg)[0]
-        logging.debug(f"Recived Version: {ver}")
-        if (
-            msg
-            and ("Answer! Remote Connection Toolkit version" in msg)
-            and _check_version(ver)
-        ):
-            logging.info("Cilent Answered: " + msg)
+            return
+        ver = re.search(r"\d+\.\d+\.\d+", msg)[0]
+        logging.debug(f"Received Version: {ver}")
+        if msg and "Answer! Remote Connection Toolkit version" in msg and _check_version(ver):
+            logging.info(f"Client Answered: {msg}")
         else:
-            logging.error(
-                "Unsupported Client Interface (Client Answer: {})".format(msg)
-            )
-            raise RemoteToolkitError(
-                "Unsupported Client Interface (Client Answer: {})".format(msg)
-            )
+            logging.error(f"Unsupported Client Interface (Client Answer: {msg})")
+            raise RemoteToolkitError(f"Unsupported Client Interface (Client Answer: {msg})")
 
     def initiativeConnect(self, timeout=0):
         self.connectMode = "initiativeConnect"
@@ -276,33 +248,21 @@ class RemoteConnection:
         logging.info("Start ranging events...")
         while self.connect:
             # Call event message must like this: "EventKeyWord|arg1,arg2,..."
-            msg = self.clientObject.recv(4096)
-            msg = msg.decode()
+            msg = self.clientObject.recv(4096).decode()
             cvk = msg.split("|")
-            for funcRE in funcList.keys():
-                if funcRE == cvk[0]:
-                    event_args = cvk[1].split(",")
-                    logging.info(
-                        "Event {} Started, Gived Args: {}".format(funcRE, event_args)
+            funcRE = cvk[0]
+            if funcRE in funcList:
+                event_args = cvk[1].split(",")
+                logging.info(f"Event {funcRE} Started, Given Args: {event_args}")
+                try:
+                    funcReturn = funcList[funcRE](self, event_args)
+                    logging.log(
+                        logging.INFO if funcReturn in (0, None) else logging.WARNING,
+                        f"Event {funcRE} Ended, Return Value: {funcReturn}",
                     )
-                    try:
-                        funcReturn = funcList[funcRE](self, event_args)
-                        logging.log(
-                            (
-                                logging.INFO
-                                if (funcReturn == 0 or funcReturn == None)
-                                else logging.WARNING
-                            ),
-                            "Event {} Ended, Return Value: {}".format(
-                                funcRE, funcReturn
-                            ),
-                        )
-                    except Exception as e:
-                        logging.error("Event {} Crashed: {}".format(funcRE, e))
-
-                        self.sendString(
-                            f"showError|{ base64.b64encode(str(e).encode('utf-8')) },"
-                        )
+                except Exception as e:
+                    logging.error(f"Event {funcRE} Crashed: {e}")
+                    self.sendString(f"showError|{base64.b64encode(str(e).encode('utf-8')).decode('utf-8')},")
 
 
 # Here is the implementation of the built-in instruction set:
@@ -321,9 +281,7 @@ the "args" parameter.
 
 
 def ArgsFormater(**kwargs):
-    for iter in range(0, len(kwargs)):
-        kwargs[iter] = str(kwargs[iter])
-    return kwargs
+    return {k: str(v) for k, v in kwargs.items()}
 
 
 def showError(remote: RemoteConnection, args: list):
@@ -364,17 +322,12 @@ def getPathList(remote: RemoteConnection, args: list):
 def sendFile(remote: RemoteConnection, args: list):
     """Proactively sending file to remote computer."""
     # args[0] : File Path(str)
-    remote.sendString(f"reciveFile|{args[0]},")
-    msg = remote.clientObject.recv(1024)
-    msg = msg.decode()
+    remote.sendString(f"receiveFile|{args[0]},")
+    msg = remote.clientObject.recv(1024).decode()
     if msg == "Ready":
         with open(os.path.abspath(args[0]), "rb") as file:
-            while True:
-                f_data = file.read(1024)
-                if f_data:
-                    remote.send(f_data)
-                else:
-                    break
+            while (f_data := file.read(1024)):
+                remote.send(f_data)
     else:
         raise RemoteToolkitError(
             "The remote computer's response is incorrect when transferring files."
@@ -442,6 +395,18 @@ def getScreenshot(remote: RemoteConnection, args: list):
         showScreenshot(remote, ArgsFormater(args[0]))
 
 
+def monitorRemoteScreen(remote: RemoteConnection, args: list):
+    """Monitor the remote screen continuously."""
+    # args[0] : Monitor Number(int)
+    # args[1] : Interval between screenshots in seconds (int)
+    monitor = int(args[0])
+    interval = int(args[1])
+    while remote.connect:
+        remote.sendString(f"catchScreenshot|{monitor}")
+        remote.sendString(f"sendScreenshot|{monitor}")
+        time.sleep(interval)
+
+
 builtin_funcs = {
     "Close": closeRemote,
     "sendPathList": sendPathList,
@@ -453,6 +418,7 @@ builtin_funcs = {
     "sendScreenshot": sendScreenshot,
     "showScreenshot": showScreenshot,
     "getScreenshot": getScreenshot,
+    "monitorRemoteScreen": monitorRemoteScreen,
 }
 
 if __name__ == "__main__":
