@@ -8,27 +8,40 @@ RemoteConnectionToolkit
 
 _A Development Kit for Remote Connection and Based on Python3._
 
+## Introduction
+Remote Connection Toolkit is a Python-based toolkit that simplifies the process of remote connection by encapsulating the Python network toolkit. It provides multiple operational tools for remote communication between computers.
+
 ## About This Project
 
 I was influenced by various remote desktop software(especially PowerToys), and developed this project using socket interface. It establishes a connection between two computers and controls them through instructions. This connection is bidirectional, which means that this project is useful for remote login, remote collaboration, and file transfer.
+
+## Features
+- **Version Compatibility**: When communicating remotely, all digits except for the third digit of the version number must be the same to continue communication.
+- **Debugging GUI**: A GUI debugger is available to assist in debugging the remote connection process.
+- **Built-in Instruction Set**: It includes a set of built-in functions for common operations such as file transfer, screenshot capture, and remote screen monitoring.
 
 ## How did it work
 
 I use Python 3 to call the socket interface of the system, establishing one as a server and the other as a client. When the client initiates a connection to the server, they will send their tool version and network IP information to the other party to ensure the security and stability of remote transmission. Afterwards, they will wait for the user's command to be issued. The instructions and execution results will be transmitted to the corresponding computer through the TCP protocol.
 
-## Getting Started
+## Requirements
+- Python 3.x
+- PIL (Python Imaging Library)
+- mss (Multiple ScreenShot)
 
-### 1.Setting up
-
-Download the source code to your computer.\
+## Installation
+1. Clone the repository:
 ```bash
-git clone https://github.com/C14147/RemoteConnectionToolkit.git
+git clone https://github.com/your-repo/RemoteConnectionToolkit.git
 ```
 **👉 The tool versions of two computers must have the same digits except for the third digit! The project has strong scalability and there are many areas that need improvement and optimization.**
+2. Install the required dependencies:
+```bash
+pip install pillow mss
+```
 
-### 2.Start Programming
+## Details of The RemoteConnection Class
 
-Here is a detailed explanation of the RemoteConnection class.\
 The RemoteConnection class has the following member functions：
 
 ```python3
@@ -87,6 +100,23 @@ Start listening for requests from connected computers.\
 👉 This function will **block the process**. This means you need to **create a new thread** for this function.\
 🚨 **Please execute this function after completing PassiveConnect or InitiativeConnect**. Otherwise, you will receive a gift called Traceback...
 
+## Built-in Functions
+The following is a list of built-in functions provided by the toolkit:
+
+| Function Name | Description |
+| --- | --- |
+| `Close` | Close the connection with the remote computer. |
+| `sendPathList` | Passively transfer the contents of a specified folder to the remote computer. |
+| `getPathList` | Proactively request the contents of a specified folder from the remote computer. |
+| `sendFile` | Proactively send a file to the remote computer. |
+| `reciveFile` | Passively receive a file from the remote computer. |
+| `getFile` | Proactively obtain a file from the remote computer. |
+| `catchScreenshot` | Capture the screenshot of the local computer. |
+| `sendScreenshot` | Send the screenshot of the local computer to the remote computer. |
+| `showScreenshot` | Get and display the screenshot of the remote computer. |
+| `getScreenshot` | Get the screenshot of the remote computer. |
+| `monitorRemoteScreen` | Continuously monitor the remote screen. |
+
 ### 3.Examples
 
 Here are some examples:
@@ -115,7 +145,7 @@ if __name__ == "__main__":
 
 ### Copyrights:
 
-Copyright(C) 2023-2024 [C14147](https://github.com/C14147/).\
+Copyright(C) 2023-2025 [C14147](https://github.com/C14147/).\
 Follow the Apache 2.0 license agreement.\
 https://github.com/C14147/RemoteConnectionToolkit
 
